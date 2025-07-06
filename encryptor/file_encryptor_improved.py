@@ -1,97 +1,81 @@
-"""
-File: file_encryptor_improved.py
-Description: Improved file encryption and decryption tool with better error handling, testability, and flexible output paths.
-"""
+import argparse
+import getpass
+import os
+import sys
+import json
+from encryptor import core
 
-from cryptography.fernet import Fernet, InvalidToken
-import base64
-import hashlib
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="File Encryption/Decryption Tool")
+    parser.add_argument('--encrypt', action='store_true', help='Encrypt the input file.')
+    parser.add_argument('--decrypt', action='store_true', help='Decrypt the input file.')
+    parser.add_argument('-i', '--input', type=str, help='Input file or folder path.')
+    parser.add_argument('-o', '--output', type=str, help='Output file or folder path (optional).')
+    parser.add_argument('-p', '--password', type=str, help='Password for encryption/decryption.')
+    parser.add_argument('--json', action='store_true', help='Output result in JSON format.')
+    return parser.parse_args()
 
+def main():
+    args = parse_arguments()
 
-# Generate a key from a password using SHA-256
-def generate_key(password: str) -> bytes:
-    return base64.urlsafe_b64encode(hashlib.sha256(password.encode()).digest())
+    if not args.input:
+        print("[-] Error: Input file or folder is required.")
+        sys.exit(1)
 
+    password = args.password or getpass.getpass("Enter password: ")
 
-# Load file content
-def load_file(file_path: str) -> bytes:
-    with open(file_path, 'rb') as file:
-        return file.read()
-
-
-# Save file content
-def save_file(file_path: str, data: bytes):
-    with open(file_path, 'wb') as file:
-        file.write(data)
-
-
-# Encrypt data
-def encrypt_data(data: bytes, key: bytes) -> bytes:
-    fernet = Fernet(key)
-    return fernet.encrypt(data)
-
-
-# Decrypt data
-def decrypt_data(encrypted_data: bytes, key: bytes) -> bytes:
-    fernet = Fernet(key)
-    return fernet.decrypt(encrypted_data)
-
-
-# Encrypt a file
-def encrypt_file(input_file: str, output_file: str, password: str):
-    try:
-        key = generate_key(password)
-        data = load_file(input_file)
-        encrypted_data = encrypt_data(data, key)
-        save_file(output_file, encrypted_data)
-        print(f"[+] File '{input_file}' encrypted successfully as '{output_file}'")
-    except FileNotFoundError:
-        print(f"[-] File '{input_file}' not found.")
-        raise
-    except Exception as e:
-        print(f"[-] Error during encryption: {e}")
-        raise
-
-
-# Decrypt a file
-def decrypt_file(input_file: str, output_file: str, password: str):
-    try:
-        key = generate_key(password)
-        encrypted_data = load_file(input_file)
-        decrypted_data = decrypt_data(encrypted_data, key)
-        save_file(output_file, decrypted_data)
-        print(f"[+] File '{input_file}' decrypted successfully as '{output_file}'")
-        print("[Decrypted Content Preview]:")
-        print(decrypted_data.decode())
-    except InvalidToken:
-        print("[-] Incorrect password or corrupted file.")
-        raise
-    except FileNotFoundError:
-        print(f"[-] File '{input_file}' not found.")
-        raise
-    except Exception as e:
-        print(f"[-] Error during decryption: {e}")
-        raise
-
-
-# Main CLI interface
-if __name__ == "__main__":
-    print("=== Improved File Encryption Tool (Python) ===")
-    choice = input("Choose [E]ncrypt or [D]ecrypt: ").strip().lower()
-
-    if choice == 'e':
-        input_file = input("Enter the input file name (with extension): ").strip()
-        output_file = input("Enter the output encrypted file name (with extension): ").strip()
-        password = input("Enter password: ").strip()
-        encrypt_file(input_file, output_file, password)
-
-    elif choice == 'd':
-        input_file = input("Enter the encrypted file name (with extension): ").strip()
-        output_file = input("Enter the output decrypted file name (with extension): ").strip()
-        password = input("Enter password: ").strip()
-        decrypt_file(input_file, output_file, password)
-
+    # Auto-generate output file if not provided
+    if args.output:
+        output_path = args.output
     else:
-        print("[-] Invalid choice. Please choose 'E' or 'D'.")
+        if args.encrypt:
+            output_path = f"{args.input}.enc"
+        elif args.decrypt:
+            output_path = args.input.replace(".enc", ".dec.txt")
+        else:
+            output_path = f"{args.input}.out"
 
+    # Encrypt or Decrypt
+    try:
+        if args.encrypt:
+            if os.path.isdir(args.input):
+                core.encrypt_folder(args.input, output_path, password)
+                message = f"Encrypted folder {args.input} as {output_path}"
+            else:
+                core.encrypt_file(args.input, output_path, password)
+                message = f"Encrypted {args.input} as {output_path}"
+        elif args.decrypt:
+            if os.path.isdir(args.input):
+                core.decrypt_folder(args.input, output_path, password)
+                message = f"Decrypted folder {args.input} to {output_path}"
+            else:
+                core.decrypt_file(args.input, output_path, password)
+                message = f"Decrypted {args.input} to {output_path}"
+        else:
+            print("[-] Please specify --encrypt or --decrypt.")
+            sys.exit(1)
+
+        # Output
+        if args.json:
+            print(json.dumps({"status": "success", "message": message}))
+        else:
+            print(f"[+] {message}")
+
+    except core.InvalidPasswordError:
+        error_msg = "[-] Invalid password or corrupted file."
+        if args.json:
+            print(json.dumps({"status": "error", "message": error_msg}))
+        else:
+            print(error_msg)
+        sys.exit(1)
+    except Exception as e:
+        error_msg = f"[-] Error: {str(e)}"
+        if args.json:
+            print(json.dumps({"status": "error", "message": error_msg}))
+        else:
+            print(error_msg)
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
 

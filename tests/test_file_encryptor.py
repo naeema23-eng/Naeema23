@@ -1,46 +1,35 @@
 import unittest
-import sys
 import os
-
-# Ensure the parent directory is in the path so we can import the encryptor module
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from encryptor.file_encryptor_improved import encrypt_file, decrypt_file
-
+from encryptor import core
 
 class TestFileEncryptor(unittest.TestCase):
 
     def setUp(self):
-        self.test_input = "test_secret.txt"
-        self.encrypted_output = "test_secret.enc"
-        self.decrypted_output = "test_secret.dec.txt"
-        self.password = "TestPass123!"
-
-        # Create a dummy file to encrypt
-        with open(self.test_input, "w") as f:
+        self.password = "securepassword"
+        self.input_file = "test_secret.txt"
+        self.encrypted_file = "test_secret.enc"
+        self.decrypted_file = "test_secret.dec.txt"
+        with open(self.input_file, "w") as f:
             f.write("This is a secret message.")
 
     def tearDown(self):
-        # Clean up test files
-        for file in [self.test_input, self.encrypted_output, self.decrypted_output]:
+        for file in [self.input_file, self.encrypted_file, self.decrypted_file]:
             if os.path.exists(file):
                 os.remove(file)
 
     def test_encryption_and_decryption(self):
-        # Encrypt the file
-        encrypt_file(self.test_input, self.encrypted_output, self.password)
-        self.assertTrue(os.path.exists(self.encrypted_output), "Encrypted file was not created.")
+        core.encrypt_file(self.input_file, self.encrypted_file, self.password)
+        core.decrypt_file(self.encrypted_file, self.decrypted_file, self.password)
 
-        # Decrypt the file
-        decrypt_file(self.encrypted_output, self.decrypted_output, self.password)
-        self.assertTrue(os.path.exists(self.decrypted_output), "Decrypted file was not created.")
+        with open(self.decrypted_file, "r") as f:
+            decrypted_content = f.read()
 
-        # Verify that the decrypted content matches the original
-        with open(self.test_input, "r") as original, open(self.decrypted_output, "r") as decrypted:
-            self.assertEqual(original.read(), decrypted.read(), "Decrypted content does not match original.")
+        self.assertEqual(decrypted_content, "This is a secret message.")
 
+    def test_invalid_password(self):
+        core.encrypt_file(self.input_file, self.encrypted_file, self.password)
+        with self.assertRaises(core.InvalidPasswordError):
+            core.decrypt_file(self.encrypted_file, self.decrypted_file, "wrongpassword")
 
 if __name__ == '__main__':
     unittest.main()
-
-
