@@ -18,11 +18,13 @@ git clone https://github.com/naeema23-eng/Naeema23.git
 cd Naeema23
 2. Install as a package
 pip install .
-⚙️ Usage
 
- Encrypt a file
+Usage
+
+Encrypt a file
 file-encryptor --encrypt -i data/secret.txt -p yourpassword
- Decrypt a file
+
+Decrypt a file
 file-encryptor --decrypt -i data/secret.txt.enc -p yourpassword
 The encrypted/decrypted files will be saved in the same folder by default.
 
@@ -42,7 +44,8 @@ python3 -m unittest discover -s tests -p "test_*.py"
  CI Pipeline
 
 GitHub Actions workflow runs automatically on each push to run the tests.
- Future Improvements
+ 
+Future Improvements
 
 PyPI publishing
 Docker Hub image
