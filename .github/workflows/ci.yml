@@ -1,29 +1,33 @@
-name: CI
+name: Java CI
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+      - name: Build Docker image
+        run: docker build -t java-encryptor .
 
-      - name: Install dependencies
+      - name: Run encryption in Docker
         run: |
-          python -m pip install --upgrade pip
-          pip install .
+          echo "This is a secret message" > input.txt
+          docker run --rm -v "$PWD":/data java-encryptor -e -i /data/input.txt -o /data/output.enc -p yourpassword
 
-      - name: Run tests
+      - name: Run decryption in Docker
         run: |
-          python -m unittest discover -s tests -p "test_*.py"
+          docker run --rm -v "$PWD":/data java-encryptor -d -i /data/output.enc -o /data/output_decrypted.txt -p yourpassword
+
+      - name: Verify output
+        run: |
+          grep "This is a secret message" output_decrypted.txt
